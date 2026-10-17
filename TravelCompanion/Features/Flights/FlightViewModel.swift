@@ -24,11 +24,11 @@ final class FlightViewModel: ObservableObject {
     private var requestID = UUID()
 
     init(
-        service: FlightSearching = FlightService.shared,
+        service: FlightSearching? = nil,
         defaults: UserDefaults = .standard,
         airportStatus: @escaping (String) async -> FrankfurtFlightStatus? = { await FrankfurtAirportService.shared.status(for: $0) }
     ) {
-        self.service = service
+        self.service = service ?? FlightService.shared
         self.defaults = defaults
         self.airportStatus = airportStatus
         loadRecentSearches()

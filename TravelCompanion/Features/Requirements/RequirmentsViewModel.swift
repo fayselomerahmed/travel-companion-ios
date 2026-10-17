@@ -30,8 +30,8 @@ final class RequirementsViewModel: ObservableObject {
     private let defaults: UserDefaults
     private var requestID = UUID()
 
-    init(service: RequirementsChecking = RequirementsService.shared, defaults: UserDefaults = .standard) {
-        self.service = service
+    init(service: RequirementsChecking? = nil, defaults: UserDefaults = .standard) {
+        self.service = service ?? RequirementsService.shared
         self.defaults = defaults
         loadRecentChecks()
     }
