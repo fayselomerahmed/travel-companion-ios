@@ -5,7 +5,7 @@ Status: development candidate with a verified Release simulator build. Unfinishe
 ## Implemented safeguards
 
 - Missing, placeholder, and unresolved build-variable API keys are rejected before requests.
-- Configuration accepts HTTPS endpoints without embedded credentials.
+- Runtime provider requests use fixed HTTPS endpoints. The separately tested `secureURL` helper is not currently a runtime configuration boundary.
 - Out-of-order flight results cannot overwrite newer searches; cancellation does not retry or display an error. Country-selection changes and reset invalidate in-flight requirements responses.
 - Requirements responses must match the selected passport/destination route; provider diagnostic bodies are not displayed to the user.
 - Frankfurt HTML enrichment is disabled unless `ExperimentalFrankfurtHTMLEnrichmentEnabled` is explicitly true. Provider flight data, airport maps, and official-airport links remain available without it.
