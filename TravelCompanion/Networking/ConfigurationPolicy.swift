@@ -1,6 +1,12 @@
 import Foundation
 
 enum ConfigurationPolicy {
+    /// HTML substring matching is not a verified source of per-flight operational data.
+    /// Keep it out of normal builds unless a developer explicitly opts into the experiment.
+    static func allowsExperimentalAirportEnrichment(enabled: Bool?) -> Bool {
+        enabled == true
+    }
+
     static func value(environment: String?, bundled: String?) -> String? {
         for candidate in [environment, bundled] {
             guard let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines),

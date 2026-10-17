@@ -2,6 +2,12 @@ import XCTest
 @testable import TravelCore
 
 final class TravelCoreTests: XCTestCase {
+    func testUnverifiedAirportEnrichmentRequiresExplicitOptIn() {
+        XCTAssertFalse(ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: nil))
+        XCTAssertFalse(ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: false))
+        XCTAssertTrue(ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: true))
+    }
+
     func testRejectsMissingAndUnexpandedSecrets() {
         for value in ["", "  ", "$(RAPID_API_KEY)", "YOUR_API_KEY", "REPLACE_ME", "your-rapidapi-key", "your-aviationstack-key"] {
             XCTAssertNil(ConfigurationPolicy.value(environment: value, bundled: nil))

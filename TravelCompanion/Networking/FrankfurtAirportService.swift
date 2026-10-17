@@ -18,6 +18,14 @@ final class FrankfurtAirportService {
     private init() {}
 
     func status(for flightCode: String) async -> FrankfurtFlightStatus? {
+        let experimentalEnrichmentEnabled = Bundle.main.object(
+            forInfoDictionaryKey: "ExperimentalFrankfurtHTMLEnrichmentEnabled"
+        ) as? Bool
+        guard ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: experimentalEnrichmentEnabled) else {
+            // Never replace provider data with an unverified neighbouring HTML match.
+            // Flight results, maps, and direct official-airport links remain available.
+            return nil
+        }
         let normalizedCode = flightCode.uppercased().replacingOccurrences(of: " ", with: "")
 
         if let status = await status(from: departuresURL, flightCode: normalizedCode, sourceName: "Frankfurt Airport") {
