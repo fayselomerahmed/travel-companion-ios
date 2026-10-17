@@ -57,6 +57,6 @@ Never commit `Secrets.local.xcconfig` or put production credentials directly in 
 
 ## Validation and current status
 
-Run `swift test` for five regression tests covering configuration and purchase-entitlement policy. A hosted workflow repeats core tests and builds Release for the iOS simulator. A full local simulator build was attempted but blocked by the installed iOS platform/runtime; runtime behavior and live provider responses are not yet verified.
+Five regression tests cover configuration and purchase-entitlement policy (`swift test`). The [hosted build](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39033459044) passed both core tests and a complete Release iOS simulator build on 2026-10-17. Runtime behavior and live provider responses are not yet verified.
 
 See [release readiness](PRODUCTION_READINESS.md) for the explicit backend, premium-feature, device, privacy, and App Store gates. This is a development project, not a claim of completed production deployment.

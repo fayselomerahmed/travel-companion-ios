@@ -13,11 +13,12 @@ Status: development candidate. Premium functionality is a preview, not a ready-t
 
 ## Validation
 
-Run `swift test` for the host-runnable configuration and purchase-entitlement regression suite. The hosted build workflow also performs a Release simulator build. Local full simulator build attempts on 2026-10-17 were blocked by an unavailable iOS platform/runtime; syntax or core tests are not a substitute for an app build.
+Five host-runnable configuration and purchase-entitlement tests pass with `swift test`. On 2026-10-17 the [hosted workflow](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39033459044) passed both these tests and a complete Release simulator build at `1960c785`. Local app builds are still blocked by the unavailable iOS runtime; the hosted build provides compilation evidence, not runtime or live-service validation.
 
 ## Release gates
 
-- [ ] Green hosted Release build, then physical-device smoke tests for each feature and supported iOS version.
+- [x] Green hosted Release simulator build.
+- [ ] Physical-device smoke tests for each feature and supported iOS version.
 - [ ] Missing-key, timeout, malformed response, offline, empty-results, provider-rate-limit, and cancellation checks.
 - [ ] Move reusable provider credentials behind an authenticated, rate-limited backend. Values embedded in an app bundle cannot be kept secret.
 - [ ] Verify trip save/reopen/delete behavior and persistence migrations without data loss.
