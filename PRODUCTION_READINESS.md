@@ -8,6 +8,7 @@ Status: development candidate with a verified Release simulator build. Unfinishe
 - Runtime provider requests use fixed HTTPS endpoints. The separately tested `secureURL` helper is not currently a runtime configuration boundary.
 - Out-of-order flight results cannot overwrite newer searches; cancellation does not retry or display an error. Country-selection changes and reset invalidate in-flight requirements responses.
 - Requirements responses must match the selected passport/destination route; provider diagnostic bodies are not displayed to the user.
+- Flight fallback is limited to one undated request after empty dated results or a recognized subscription restriction. Permanent errors and superseded searches do not trigger follow-on requests; provider diagnostics are mapped to safe typed messages.
 - Frankfurt HTML enrichment is disabled unless `ExperimentalFrankfurtHTMLEnrichmentEnabled` is explicitly true. Provider flight data, airport maps, and official-airport links remain available without it.
 - Paid-product access refreshes from verified current StoreKit entitlements, excluding revoked, expired, and upgraded transactions.
 - Purchases and unfinished upsell sections default to disabled. Do not enable `TravelPlusPurchasesEnabled` until advertised capabilities and payment flows are verified.
@@ -16,7 +17,7 @@ Status: development candidate with a verified Release simulator build. Unfinishe
 
 ## Validation
 
-On 2026-10-17 the [hosted workflow](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39064138104) passed a complete Release simulator build and 12 host-runnable regression tests at `9b6e488`. Run `swift test` to repeat the configuration, entitlement, enrichment opt-in, concurrency/cancellation, request invalidation, route-matching, and error-redaction checks using controlled services.
+On 2026-10-18 (Europe/Berlin) the [hosted workflow](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39072936112) passed a complete Release simulator build and 20 host-runnable regression tests at `b869c4d`. Run `swift test` to repeat configuration, entitlement, enrichment opt-in, concurrency/cancellation, request invalidation, route-matching, error-redaction, and bounded-fallback checks using controlled services. Shared-service defaults now resolve inside main-actor initializers; the two prior actor-isolation warnings are absent from this verified build.
 
 A separate [screenshot workflow](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39063950747) built and launched the app in an iPhone simulator and captured the [home screen](docs/screenshots/home.png). This confirms that the captured interface rendered; it does not establish live-provider behavior or physical-device readiness.
 

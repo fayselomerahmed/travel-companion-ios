@@ -33,17 +33,19 @@ Preparing a trip means combining information from several providers while keepin
 
 **Purchase access follows verified state.** The [purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) refreshes current entitlements after transaction updates and excludes revoked, expired, or upgraded purchases. Unfinished premium upsells are hidden by default. Purchases require an explicit build opt-in after the capabilities and payment flows are verified.
 
-The provider fallback is a deliberate trade-off: flight search retries without a date when the provider plan rejects that parameter. Frankfurt HTML enrichment requires an explicit `ExperimentalFrankfurtHTMLEnrichmentEnabled` opt-in; the default build keeps provider flight data, maps, and direct official-airport links without relying on scraped status matches.
+The provider fallback is deliberately bounded: flight search retries once without a date only for an empty dated result or a recognized subscription restriction. Missing keys, authorization/quota errors, transport failures, and decoding errors do not trigger a second request. Superseded searches also skip fallback and enrichment work. Frankfurt HTML enrichment requires an explicit `ExperimentalFrankfurtHTMLEnrichmentEnabled` opt-in; the default build keeps provider flight data, maps, and direct official-airport links without relying on scraped status matches.
 
 ## Verified build and tests
 
-The [verified CI run](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39064138104) at `9b6e488` passed a complete Release iOS simulator build and **12 regression tests** on 2026-10-17. Tests cover configuration precedence, missing/placeholder credentials, HTTPS validation, active versus expired/revoked purchase policy, explicit airport-enrichment opt-in, out-of-order searches, cancellation, selection/reset invalidation, mismatched provider routes, and redacted provider errors.
+The [verified CI run](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39072936112) at `b869c4d` passed a complete Release iOS simulator build and **20 regression tests** on 2026-10-18 (Europe/Berlin). Tests cover configuration, entitlement policy, explicit airport-enrichment opt-in, out-of-order searches, cancellation, selection/reset invalidation, mismatched provider routes, safe provider errors, and bounded date fallback without unnecessary permanent-error retries.
 
 ```bash
 swift test
 ```
 
 These tests exercise configuration, entitlement policy, and real view-model state using controlled services; they are not live-provider integration or full UI tests. The [CI configuration](.github/workflows/build.yml) includes the exact Release build command.
+
+Documentation-only pushes skip the app rebuild; pull requests and manual runs still execute all build checks. Secret scans remain active for every push.
 
 ## Run locally
 
