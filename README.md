@@ -6,6 +6,10 @@ Swift · SwiftUI · SwiftData · Swift Concurrency · URLSession · MapKit · St
 
 [![Build and tests](https://github.com/fayselomerahmed/travel-companion-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/fayselomerahmed/travel-companion-ios/actions/workflows/build.yml)
 
+<p><img src="docs/screenshots/home.png" width="260" alt="Travel Companion home screen with flight and entry-requirement tools"></p>
+
+Genuine iPhone simulator capture of the running app. The home screen demonstrates the interface; no live-provider responses are shown.
+
 ## The problem
 
 Preparing a trip means combining information from several providers while keeping essential details easy to find. This project brings those tasks into one interface and treats missing configuration, provider failures, local persistence, and purchase state as explicit application states.
@@ -15,29 +19,31 @@ Preparing a trip means combining information from several providers while keepin
 - Flight-code search, result prioritization, and flight-detail screens.
 - Visa/entry-requirement lookup by passport country and destination through RapidAPI.
 - Saved trips backed by SwiftData, plus recent searches stored locally.
-- Airport maps and links to Apple Maps; best-effort Frankfurt departure-board enrichment.
+- Airport maps, links to Apple Maps, and direct official-airport links. Experimental Frankfurt HTML enrichment is disabled by default.
 - Interface resources for 22 languages and an in-app language selector.
-- StoreKit 2 product loading, verified entitlement handling, and purchase restoration. Premium sales remain disabled while planned features are unfinished.
+- StoreKit 2 product loading, verified entitlement handling, and purchase restoration. Unfinished upsell sections are hidden and purchases remain disabled by default.
 
 ## Engineering highlights
 
 **Feature state separated from provider requests.** Main-actor [flight](TravelCompanion/Features/Flights/FlightViewModel.swift) and [requirements](TravelCompanion/Features/Requirements/RequirmentsViewModel.swift) view models own loading, results, and errors. Provider-specific services handle requests and decoding through the shared [API client](TravelCompanion/Networking/APIClient.swift).
 
+**Search results stay tied to the active request.** Older flight responses cannot replace newer results. Changing a nationality/destination selection or clearing results invalidates an in-flight requirements check; cancellation does not trigger a retry or an error banner.
+
 **Defensive configuration and persistence.** [ConfigurationPolicy](TravelCompanion/Networking/ConfigurationPolicy.swift) rejects placeholders and unresolved build variables. Requests have bounded timeouts and user-facing failures. If the persistent store cannot open, [startup](TravelCompanion/TravelCompanionApp.swift) shows a recovery screen instead of pretending in-memory trips were permanently saved.
 
-**Purchase access follows verified state.** The [purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) refreshes current entitlements after transaction updates and excludes revoked, expired, or upgraded purchases. Planned premium features are labeled as a preview, and purchases are disabled by default.
+**Purchase access follows verified state.** The [purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) refreshes current entitlements after transaction updates and excludes revoked, expired, or upgraded purchases. Unfinished premium upsells are hidden by default. Purchases require an explicit build opt-in after the capabilities and payment flows are verified.
 
-The provider fallback is a deliberate trade-off: flight search retries without a date when the provider plan rejects that parameter. Airport-board enrichment is best-effort, not a guaranteed official operational feed.
+The provider fallback is a deliberate trade-off: flight search retries without a date when the provider plan rejects that parameter. Frankfurt HTML enrichment requires an explicit `ExperimentalFrankfurtHTMLEnrichmentEnabled` opt-in; the default build keeps provider flight data, maps, and direct official-airport links without relying on scraped status matches.
 
 ## Verified build and tests
 
-The [verified CI run](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39037288743) passed a complete Release iOS simulator build and **5 core regression tests** on 2026-10-17. Tests cover configuration precedence, missing/placeholder credentials, HTTPS validation, and active versus expired/revoked purchase policy.
+The [verified CI run](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39064138104) at `9b6e488` passed a complete Release iOS simulator build and **12 regression tests** on 2026-10-17. Tests cover configuration precedence, missing/placeholder credentials, HTTPS validation, active versus expired/revoked purchase policy, explicit airport-enrichment opt-in, out-of-order searches, cancellation, selection/reset invalidation, mismatched provider routes, and redacted provider errors.
 
 ```bash
 swift test
 ```
 
-These are focused policy tests, not UI or live-provider integration tests. The [CI configuration](.github/workflows/build.yml) includes the exact Release build command.
+These tests exercise configuration, entitlement policy, and real view-model state using controlled services; they are not live-provider integration or full UI tests. The [CI configuration](.github/workflows/build.yml) includes the exact Release build command.
 
 ## Run locally
 
