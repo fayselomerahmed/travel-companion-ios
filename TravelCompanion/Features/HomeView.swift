@@ -36,14 +36,16 @@ struct HomeView: View {
                             .offset(y: appeared ? 0 : 18)
                             .animation(.spring(response: 0.65, dampingFraction: 0.82).delay(0.05), value: appeared)
 
-                        TravelPlusCompactCard {
-                            showsTravelPlus = true
+                        if PurchaseManager.isEnabledInThisBuild {
+                            TravelPlusCompactCard {
+                                showsTravelPlus = true
+                            }
+                            .frame(maxWidth: contentMaxWidth)
+                            .frame(maxWidth: .infinity)
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 18)
+                            .animation(.spring(response: 0.65, dampingFraction: 0.82).delay(0.10), value: appeared)
                         }
-                        .frame(maxWidth: contentMaxWidth)
-                        .frame(maxWidth: .infinity)
-                        .opacity(appeared ? 1 : 0)
-                        .offset(y: appeared ? 0 : 18)
-                        .animation(.spring(response: 0.65, dampingFraction: 0.82).delay(0.10), value: appeared)
 
                         toolsSection
                             .frame(maxWidth: contentMaxWidth)

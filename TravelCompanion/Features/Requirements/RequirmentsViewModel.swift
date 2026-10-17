@@ -9,9 +9,15 @@ import Combine
 
 @MainActor
 final class RequirementsViewModel: ObservableObject {
-    @Published var origin: Country?
-    @Published var destination: Country?
-    @Published var nationality: Country?
+    @Published var origin: Country? {
+        didSet { if origin?.code != oldValue?.code { clearResults() } }
+    }
+    @Published var destination: Country? {
+        didSet { if destination?.code != oldValue?.code { clearResults() } }
+    }
+    @Published var nationality: Country? {
+        didSet { if nationality?.code != oldValue?.code { clearResults() } }
+    }
 
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -20,44 +26,69 @@ final class RequirementsViewModel: ObservableObject {
 
     private let recentChecksKey = "recent_requirement_checks"
     private let maxRecentChecks = 8
+    private let service: RequirementsChecking
+    private let defaults: UserDefaults
+    private var requestID = UUID()
 
-    init() {
+    init(service: RequirementsChecking = RequirementsService.shared, defaults: UserDefaults = .standard) {
+        self.service = service
+        self.defaults = defaults
         loadRecentChecks()
     }
 
     func clearResults() {
+        requestID = UUID()
+        isLoading = false
         visaResponse = nil
         errorMessage = nil
     }
 
     func checkRequirements() async {
         clearResults()
+        let id = requestID
 
         guard let destination, let nationality else {
             errorMessage = "Please select destination and nationality."
             return
         }
 
+        let selectedOrigin = origin
         isLoading = true
-        defer { isLoading = false }
+        defer { if requestID == id { isLoading = false } }
 
         do {
-            let response = try await RequirementsService.shared.checkVisaRequirements(
+            let response = try await service.checkVisaRequirements(
                 passportCode: nationality.code,
                 destinationCode: destination.code
             )
+            guard requestID == id,
+                  self.origin?.code == selectedOrigin?.code,
+                  self.destination?.code == destination.code,
+                  self.nationality?.code == nationality.code,
+                  !Task.isCancelled else { return }
+            guard response.data.passport.code.caseInsensitiveCompare(nationality.code) == .orderedSame,
+                  response.data.destination.code.caseInsensitiveCompare(destination.code) == .orderedSame else {
+                throw NetworkServiceError.invalidResponse
+            }
             visaResponse = response
             addRecentCheck(
-                origin: origin,
+                origin: selectedOrigin,
                 destination: destination,
                 nationality: nationality
             )
         } catch {
+            guard requestID == id,
+                  self.origin?.code == selectedOrigin?.code,
+                  self.destination?.code == destination.code,
+                  self.nationality?.code == nationality.code,
+                  !Task.isCancelled else { return }
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             errorMessage = error.localizedDescription
         }
     }
 
     func applyRecentCheck(_ item: RecentRequirementCheck) {
+        clearResults()
         origin = country(for: item.originCode)
         destination = country(for: item.destinationCode)
         nationality = country(for: item.nationalityCode)
@@ -99,7 +130,7 @@ final class RequirementsViewModel: ObservableObject {
     }
 
     private func loadRecentChecks() {
-        guard let data = UserDefaults.standard.data(forKey: recentChecksKey) else {
+        guard let data = defaults.data(forKey: recentChecksKey) else {
             recentChecks = []
             return
         }
@@ -114,7 +145,7 @@ final class RequirementsViewModel: ObservableObject {
     private func saveRecentChecks() {
         do {
             let data = try JSONEncoder().encode(recentChecks)
-            UserDefaults.standard.set(data, forKey: recentChecksKey)
+            defaults.set(data, forKey: recentChecksKey)
         } catch {
             #if DEBUG
             assertionFailure("Failed to save recent requirement checks: \(error)")

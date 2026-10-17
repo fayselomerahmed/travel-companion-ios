@@ -18,17 +18,31 @@ final class FlightViewModel: ObservableObject {
 
     private let recentSearchesKey = "recent_flight_searches"
     private let maxRecentSearches = 8
+    private let service: FlightSearching
+    private let airportStatus: (String) async -> FrankfurtFlightStatus?
+    private let defaults: UserDefaults
+    private var requestID = UUID()
 
-    init() {
+    init(
+        service: FlightSearching = FlightService.shared,
+        defaults: UserDefaults = .standard,
+        airportStatus: @escaping (String) async -> FrankfurtFlightStatus? = { await FrankfurtAirportService.shared.status(for: $0) }
+    ) {
+        self.service = service
+        self.defaults = defaults
+        self.airportStatus = airportStatus
         loadRecentSearches()
     }
 
     func search() async {
+        let id = UUID()
+        requestID = id
         let trimmed = normalizedFlightCode(from: flightIATA)
 
         guard !trimmed.isEmpty else {
             errorMessage = "Please enter a flight code like LH400."
             flights = []
+            isLoading = false
             return
         }
 
@@ -37,11 +51,13 @@ final class FlightViewModel: ObservableObject {
         errorMessage = nil
         flights = []
 
-        defer { isLoading = false }
+        defer { if requestID == id { isLoading = false } }
 
         do {
             let response = try await searchBestAvailableFlight(trimmed)
+            try Task.checkCancellation()
             let enrichedFlights = await enrichWithFrankfurtDataIfAvailable(response.data, matching: trimmed)
+            guard requestID == id, normalizedFlightCode(from: flightIATA) == trimmed, !Task.isCancelled else { return }
             flights = prioritizedFlights(from: enrichedFlights, matching: trimmed)
 
             if flights.isEmpty {
@@ -50,6 +66,8 @@ final class FlightViewModel: ObservableObject {
                 addRecentSearch(trimmed)
             }
         } catch {
+            guard requestID == id, normalizedFlightCode(from: flightIATA) == trimmed, !Task.isCancelled else { return }
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -72,19 +90,22 @@ final class FlightViewModel: ObservableObject {
         value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
+            .filter { !$0.isWhitespace }
     }
 
     private func searchBestAvailableFlight(_ code: String) async throws -> FlightResponse {
         do {
-            let datedResponse = try await FlightService.shared.searchFlight(iataCode: code, flightDate: todayFlightDate)
+            let datedResponse = try await service.searchFlight(iataCode: code, flightDate: todayFlightDate)
             if !datedResponse.data.isEmpty {
                 return datedResponse
             }
         } catch {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { throw error }
             // Some AviationStack plans reject flight_date. Keep flight search working by retrying with the base query.
         }
 
-        return try await FlightService.shared.searchFlight(iataCode: code)
+        try Task.checkCancellation()
+        return try await service.searchFlight(iataCode: code, flightDate: nil)
     }
 
     private func enrichWithFrankfurtDataIfAvailable(_ items: [FlightItem], matching code: String) async -> [FlightItem] {
@@ -92,7 +113,7 @@ final class FlightViewModel: ObservableObject {
             return items
         }
 
-        guard let frankfurtStatus = await FrankfurtAirportService.shared.status(for: code) else {
+        guard let frankfurtStatus = await airportStatus(code) else {
             return items
         }
 
@@ -140,7 +161,7 @@ final class FlightViewModel: ObservableObject {
     }
 
     private func loadRecentSearches() {
-        guard let stored = UserDefaults.standard.array(forKey: recentSearchesKey) as? [String] else {
+        guard let stored = defaults.array(forKey: recentSearchesKey) as? [String] else {
             recentSearches = []
             return
         }
@@ -151,6 +172,6 @@ final class FlightViewModel: ObservableObject {
     }
 
     private func saveRecentSearches() {
-        UserDefaults.standard.set(recentSearches, forKey: recentSearchesKey)
+        defaults.set(recentSearches, forKey: recentSearchesKey)
     }
 }

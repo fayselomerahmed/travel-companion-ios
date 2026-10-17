@@ -21,9 +21,11 @@ final class PurchaseManager: ObservableObject {
     @Published var statusMessage: String?
 
     // Enable only after every advertised premium capability and purchase flow is verified.
-    var purchasesEnabled: Bool {
+    static var isEnabledInThisBuild: Bool {
         Bundle.main.object(forInfoDictionaryKey: "TravelPlusPurchasesEnabled") as? Bool == true
     }
+
+    var purchasesEnabled: Bool { Self.isEnabledInThisBuild }
 
     private let productIDs: Set<String> = [
         PurchaseManager.tripPassProductID,

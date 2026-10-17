@@ -32,7 +32,11 @@ private struct AviationStackErrorPayload: Decodable {
     let info: String?
 }
 
-final class FlightService {
+protocol FlightSearching {
+    func searchFlight(iataCode: String, flightDate: String?) async throws -> FlightResponse
+}
+
+final class FlightService: FlightSearching {
     static let shared = FlightService()
     private init() {}
 

@@ -7,7 +7,11 @@
 
 import Foundation
 
-final class RequirementsService {
+protocol RequirementsChecking {
+    func checkVisaRequirements(passportCode: String, destinationCode: String) async throws -> VisaCheckResponse
+}
+
+final class RequirementsService: RequirementsChecking {
     static let shared = RequirementsService()
     private init() {}
 

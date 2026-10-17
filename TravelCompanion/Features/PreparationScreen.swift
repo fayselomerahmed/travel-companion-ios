@@ -86,12 +86,14 @@ struct PreparationScreen: View {
                             .offset(y: appeared ? 0 : 16)
                             .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.28), value: appeared)
 
-                        revenueSection
-                            .frame(maxWidth: contentMaxWidth)
-                            .frame(maxWidth: .infinity)
-                            .opacity(appeared ? 1 : 0)
-                            .offset(y: appeared ? 0 : 16)
-                            .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.32), value: appeared)
+                        if PurchaseManager.isEnabledInThisBuild {
+                            revenueSection
+                                .frame(maxWidth: contentMaxWidth)
+                                .frame(maxWidth: .infinity)
+                                .opacity(appeared ? 1 : 0)
+                                .offset(y: appeared ? 0 : 16)
+                                .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.32), value: appeared)
+                        }
 
                         readinessSection
                             .frame(maxWidth: contentMaxWidth)

@@ -30,10 +30,10 @@ enum NetworkServiceError: LocalizedError {
         switch self {
         case .invalidResponse:
             return "The server response was not valid. Please try again."
-        case .httpStatus(let code, let message):
-            if let message, !message.isEmpty {
-                return message
-            }
+        case .httpStatus(let code, _):
+            // Provider bodies can echo credentials or internal diagnostics; never render them in the UI.
+            if code == 401 || code == 403 { return "The travel service could not authorize this request. Check the API configuration and subscription." }
+            if code == 429 { return "The travel service is busy or its request limit was reached. Please try again later." }
             return "The server returned HTTP \(code). Please try again in a moment."
         case .decodingFailed(let context):
             return "The app could not read the \(context) response. Please try again."

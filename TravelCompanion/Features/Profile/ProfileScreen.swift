@@ -37,12 +37,14 @@ struct ProfileScreen: View {
                             .offset(y: appeared ? 0 : 16)
                             .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.12), value: appeared)
 
-                        businessSection
-                            .frame(maxWidth: contentMaxWidth)
-                            .frame(maxWidth: .infinity)
-                            .opacity(appeared ? 1 : 0)
-                            .offset(y: appeared ? 0 : 16)
-                            .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.16), value: appeared)
+                        if PurchaseManager.isEnabledInThisBuild {
+                            businessSection
+                                .frame(maxWidth: contentMaxWidth)
+                                .frame(maxWidth: .infinity)
+                                .opacity(appeared ? 1 : 0)
+                                .offset(y: appeared ? 0 : 16)
+                                .animation(.spring(response: 0.60, dampingFraction: 0.82).delay(0.16), value: appeared)
+                        }
 
                         providerSection
                             .frame(maxWidth: contentMaxWidth)

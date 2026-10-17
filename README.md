@@ -1,62 +1,61 @@
 # Travel Companion
 
-My native iPhone travel-planning project. I bring flight lookup, entry-requirement checks, saved trips, and airport guidance into one SwiftUI interface, with a focus on clear loading states, useful error messages, and locally stored trip information.
+A native iOS travel-planning app that connects flight lookup, entry-requirement checks, airport information, and locally saved trips.
 
-**SwiftUI · SwiftData · Swift Concurrency · URLSession · MapKit · StoreKit 2**
+Swift · SwiftUI · SwiftData · Swift Concurrency · URLSession · MapKit · StoreKit 2
 
-## What the app does
+[![Build and tests](https://github.com/fayselomerahmed/travel-companion-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/fayselomerahmed/travel-companion-ios/actions/workflows/build.yml)
 
-- Search flights and inspect status details.
-- Check visa and entry requirements by nationality and destination.
-- Save trips locally with SwiftData.
-- Open airport and route guidance with MapKit and Apple Maps.
-- StoreKit-based premium UI and purchase restoration.
-- Localized interface resources for 22 languages.
-- Async networking with user-facing configuration and response errors.
+## The problem
 
-## Engineering decisions
+Preparing a trip means combining information from several providers while keeping essential details easy to find. This project brings those tasks into one interface and treats missing configuration, provider failures, local persistence, and purchase state as explicit application states.
 
-I separate feature views and their state from provider-specific networking. Main-actor view models manage search input, loading, results, and errors; service classes handle API requests and response decoding. Flight search retries without the date parameter when a provider plan does not support it, and can enrich Frankfurt departures with airport status information.
+## Implemented
 
-Saved trips use SwiftData, while recent flight searches and requirement checks use lightweight local preferences. Startup presents a recovery screen if persistent storage cannot be opened, instead of silently pretending temporary in-memory trips were saved.
+- Flight-code search, result prioritization, and flight-detail screens.
+- Visa/entry-requirement lookup by passport country and destination through RapidAPI.
+- Saved trips backed by SwiftData, plus recent searches stored locally.
+- Airport maps and links to Apple Maps; best-effort Frankfurt departure-board enrichment.
+- Interface resources for 22 languages and an in-app language selector.
+- StoreKit 2 product loading, verified entitlement handling, and purchase restoration. Premium sales remain disabled while planned features are unfinished.
 
-The StoreKit 2 manager observes transaction updates, verifies results, filters revoked/expired/upgraded entitlements, and supports restoration. Premium capabilities are preview plans; purchases remain disabled by default until the advertised features and payment flows are verified.
+## Engineering highlights
 
-## Start reading the code
+**Feature state separated from provider requests.** Main-actor [flight](TravelCompanion/Features/Flights/FlightViewModel.swift) and [requirements](TravelCompanion/Features/Requirements/RequirmentsViewModel.swift) view models own loading, results, and errors. Provider-specific services handle requests and decoding through the shared [API client](TravelCompanion/Networking/APIClient.swift).
 
-- [App entry point](TravelCompanion/TravelCompanionApp.swift) — startup and SwiftData recovery.
-- [Flight view model](TravelCompanion/Features/Flights/FlightViewModel.swift) — search normalization, provider fallback, and result ranking.
-- [Requirements view model](TravelCompanion/Features/Requirements/RequirmentsViewModel.swift) — selection, validation, and recent checks.
-- [API client](TravelCompanion/Networking/APIClient.swift) — configuration, request timeouts, and response errors.
-- [Saved trip model](TravelCompanion/SavedTrip.swift) — local persistence.
-- [Purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) — StoreKit products, transactions, and restoration.
+**Defensive configuration and persistence.** [ConfigurationPolicy](TravelCompanion/Networking/ConfigurationPolicy.swift) rejects placeholders and unresolved build variables. Requests have bounded timeouts and user-facing failures. If the persistent store cannot open, [startup](TravelCompanion/TravelCompanionApp.swift) shows a recovery screen instead of pretending in-memory trips were permanently saved.
 
-## Requirements
+**Purchase access follows verified state.** The [purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) refreshes current entitlements after transaction updates and excludes revoked, expired, or upgraded purchases. Planned premium features are labeled as a preview, and purchases are disabled by default.
 
-- Xcode 16 or newer with an iOS SDK installed (deployment target: iOS 17)
-- A RapidAPI subscription for the visa-requirement service
-- An Aviationstack API key for flight data
+The provider fallback is a deliberate trade-off: flight search retries without a date when the provider plan rejects that parameter. Airport-board enrichment is best-effort, not a guaranteed official operational feed.
 
-## Local setup
+## Verified build and tests
 
-1. Copy `Secrets.example.xcconfig` to `Secrets.local.xcconfig`.
-2. Replace the example values in `Secrets.local.xcconfig` with your own keys.
-3. Open `TravelCompanion.xcodeproj` in Xcode.
-4. Select the `TravelCompanion` scheme and run on an iPhone simulator or device.
+The [verified CI run](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39037288743) passed a complete Release iOS simulator build and **5 core regression tests** on 2026-10-17. Tests cover configuration precedence, missing/placeholder credentials, HTTPS validation, and active versus expired/revoked purchase policy.
 
-`Secrets.xcconfig` contains safe empty defaults and optionally imports the ignored local file. API-backed screens report missing configuration until local keys are supplied.
+```bash
+swift test
+```
 
-Never commit `Secrets.local.xcconfig` or put production credentials directly in Swift source. A production release should proxy paid APIs through a backend so app users cannot extract reusable provider keys.
+These are focused policy tests, not UI or live-provider integration tests. The [CI configuration](.github/workflows/build.yml) includes the exact Release build command.
 
-## Project structure
+## Run locally
 
-- [`TravelCompanion/Features/`](TravelCompanion/Features) — home, flights, requirements, saved trips, profile, and premium screens.
-- [`TravelCompanion/Models/`](TravelCompanion/Models) — API request and response models.
-- [`TravelCompanion/Networking/`](TravelCompanion/Networking) — configuration, clients, and provider integrations.
-- [`TravelCompanion/SharedUI/`](TravelCompanion/SharedUI) — navigation, localization, reusable controls, and visual system.
+Use Xcode 26.4 (the verified CI toolchain); the app's deployment target is iOS 17.
 
-## Validation and current status
+```bash
+git clone https://github.com/fayselomerahmed/travel-companion-ios.git
+cd travel-companion-ios
+cp Secrets.example.xcconfig Secrets.local.xcconfig
+open TravelCompanion.xcodeproj
+```
 
-Five regression tests cover configuration and purchase-entitlement policy (`swift test`). The [hosted build](https://github.com/fayselomerahmed/travel-companion-ios/actions/runs/39033459044) passed both core tests and a complete Release iOS simulator build on 2026-10-17. Runtime behavior and live provider responses are not yet verified.
+Add your RapidAPI visa-service key and Aviationstack key to the ignored `Secrets.local.xcconfig`, then select the `TravelCompanion` scheme and an iPhone simulator. The app builds without keys; API-backed screens report missing configuration until valid credentials are supplied. Physical-device builds require your own signing team.
 
-See [release readiness](PRODUCTION_READINESS.md) for the explicit backend, premium-feature, device, privacy, and App Store gates. This is a development project, not a claim of completed production deployment.
+`Secrets.xcconfig` supplies empty defaults and imports the local file optionally. Never commit local credentials. Reusable paid-provider keys must move behind a controlled backend before public distribution; an app bundle cannot keep them secret.
+
+## Release scope
+
+This portfolio project has a verified simulator build, not a production-service or App Store release claim. Live-provider/device checks, privacy declarations, and distribution requirements are tracked in [release readiness](PRODUCTION_READINESS.md). Live alerts, a document wallet, and premium offline tools remain planned and are not sold as completed features. Entry requirements must be confirmed with official destination authorities.
+
+[Feature screens](TravelCompanion/Features) · [API models](TravelCompanion/Models) · [Networking](TravelCompanion/Networking) · [Shared UI](TravelCompanion/SharedUI) · [Security](SECURITY.md)
