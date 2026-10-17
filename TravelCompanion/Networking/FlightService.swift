@@ -7,14 +7,23 @@
 
 import Foundation
 
-enum FlightServiceError: LocalizedError {
-    case providerMessage(String)
+enum FlightServiceError: LocalizedError, Equatable {
+    case subscriptionRestriction
+    case authorizationFailed
+    case requestLimitReached
+    case providerFailure
     case httpStatus(Int)
 
     var errorDescription: String? {
         switch self {
-        case .providerMessage(let message):
-            return message
+        case .subscriptionRestriction:
+            return "This flight service subscription does not support the requested search."
+        case .authorizationFailed:
+            return "The flight service could not authorize this request. Check the API configuration and subscription."
+        case .requestLimitReached:
+            return "The flight service request limit was reached. Please try again later."
+        case .providerFailure:
+            return "The flight service could not complete the request. Please try again later."
         case .httpStatus(let statusCode):
             return "Flight provider returned HTTP \(statusCode). Please try again in a moment."
         }
@@ -22,14 +31,22 @@ enum FlightServiceError: LocalizedError {
 }
 
 private struct AviationStackErrorResponse: Decodable {
-    let success: Bool?
     let error: AviationStackErrorPayload?
 }
 
 private struct AviationStackErrorPayload: Decodable {
     let code: String?
     let type: String?
-    let info: String?
+
+    private enum CodingKeys: String, CodingKey { case code, type }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Older envelopes use a numeric code alongside a string type.
+        // Neither provider diagnostics nor messages are rendered to the user.
+        code = try? container.decode(String.self, forKey: .code)
+        type = try? container.decode(String.self, forKey: .type)
+    }
 }
 
 protocol FlightSearching {
@@ -65,10 +82,10 @@ final class FlightService: FlightSearching {
         let (data, http) = try await APIClient.shared.data(for: request)
 
         if !(200...299).contains(http.statusCode) {
-            throw providerError(from: data) ?? FlightServiceError.httpStatus(http.statusCode)
+            throw Self.providerError(from: data) ?? FlightServiceError.httpStatus(http.statusCode)
         }
 
-        if let apiError = providerError(from: data) {
+        if let apiError = Self.providerError(from: data) {
             throw apiError
         }
 
@@ -79,21 +96,21 @@ final class FlightService: FlightSearching {
         }
     }
 
-    private func providerError(from data: Data) -> FlightServiceError? {
+    static func providerError(from data: Data) -> FlightServiceError? {
         guard let response = try? JSONDecoder().decode(AviationStackErrorResponse.self, from: data),
-              response.success == false,
               let error = response.error else {
             return nil
         }
 
-        if let info = error.info, !info.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return .providerMessage(info)
+        switch error.type ?? error.code {
+        case "function_access_restricted":
+            return .subscriptionRestriction
+        case "missing_access_key", "invalid_access_key", "inactive_user", "https_access_restricted":
+            return .authorizationFailed
+        case "usage_limit_reached", "monthly_limit_reached", "rate_limit_reached":
+            return .requestLimitReached
+        default:
+            return .providerFailure
         }
-
-        if let type = error.type, !type.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return .providerMessage("Flight provider error: \(type).")
-        }
-
-        return .providerMessage("Flight provider could not complete the request.")
     }
 }

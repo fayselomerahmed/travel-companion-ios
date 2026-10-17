@@ -10,6 +10,7 @@ private actor ControlledFlights: FlightSearching {
 
     func searchFlight(iataCode: String, flightDate: String?) async throws -> FlightResponse {
         calls.append((iataCode, flightDate))
+        if flightDate == nil { return FlightResponse(data: []) }
         return try await withCheckedThrowingContinuation { continuation in
             pending[iataCode] = continuation
             onRequest(iataCode)
@@ -31,6 +32,27 @@ private actor ControlledRequirements: RequirementsChecking {
         }
     }
     func succeed(_ destination: String, response: VisaCheckResponse) { pending.removeValue(forKey: destination)?.resume(returning: response) }
+}
+
+private actor ScriptedFlights: FlightSearching {
+    private var responses: [Result<FlightResponse, Error>]
+    private(set) var dates: [String?] = []
+
+    init(_ responses: [Result<FlightResponse, Error>]) { self.responses = responses }
+
+    func searchFlight(iataCode: String, flightDate: String?) async throws -> FlightResponse {
+        dates.append(flightDate)
+        guard !responses.isEmpty else { throw NetworkServiceError.invalidResponse }
+        return try responses.removeFirst().get()
+    }
+}
+
+private actor AirportStatusSpy {
+    private(set) var calls = 0
+    func status(for code: String) -> FrankfurtFlightStatus? {
+        calls += 1
+        return nil
+    }
 }
 
 final class SearchStateTests: XCTestCase {
@@ -79,6 +101,98 @@ final class SearchStateTests: XCTestCase {
         XCTAssertEqual(calls.count, 1)
         XCTAssertNil(model.errorMessage)
         XCTAssertFalse(model.isLoading)
+    }
+
+    @MainActor func testFlightFailuresDoNotSpendAnotherRequestOnFallback() async {
+        let errors: [Error] = [
+            APIConfigurationError.missingValue("AVIATIONSTACK_API_KEY"),
+            URLError(.notConnectedToInternet), URLError(.timedOut),
+            FlightServiceError.authorizationFailed, FlightServiceError.requestLimitReached,
+            FlightServiceError.providerFailure, FlightServiceError.httpStatus(429),
+            FlightServiceError.httpStatus(500), NetworkServiceError.decodingFailed("flight")
+        ]
+        for error in errors {
+            let service = ScriptedFlights([.failure(error)])
+            let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { _ in nil })
+            model.flightIATA = "LH400"
+            await model.search()
+            let dates = await service.dates
+            XCTAssertEqual(dates.count, 1, "Unexpected fallback for \(error)")
+            XCTAssertNotNil(model.errorMessage)
+            XCTAssertFalse(model.isLoading)
+        }
+    }
+
+    @MainActor func testDatePlanRestrictionFallsBackOnceWithoutDate() async throws {
+        let service = ScriptedFlights([.failure(FlightServiceError.subscriptionRestriction), .success(try flight("LH400"))])
+        let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { _ in nil })
+        model.flightIATA = "LH400"
+        await model.search()
+        let dates = await service.dates
+        XCTAssertEqual(dates.count, 2)
+        XCTAssertNotNil(dates[0])
+        XCTAssertNil(dates[1])
+        XCTAssertEqual(model.flights.first?.flight?.iata, "LH400")
+        XCTAssertNil(model.errorMessage)
+    }
+
+    @MainActor func testEmptyDatedResultFallsBackOnceWithoutDate() async throws {
+        let service = ScriptedFlights([.success(FlightResponse(data: [])), .success(try flight("LH400"))])
+        let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { _ in nil })
+        model.flightIATA = "LH400"
+        await model.search()
+        let dates = await service.dates
+        XCTAssertEqual(dates.count, 2)
+        XCTAssertNotNil(dates[0])
+        XCTAssertNil(dates[1])
+        XCTAssertEqual(model.flights.first?.flight?.iata, "LH400")
+    }
+
+    @MainActor func testPopulatedDatedResultDoesNotRequestFallback() async throws {
+        let service = ScriptedFlights([.success(try flight("LH400"))])
+        let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { _ in nil })
+        model.flightIATA = "LH400"
+        await model.search()
+        let dates = await service.dates
+        XCTAssertEqual(dates.count, 1)
+        XCTAssertEqual(model.flights.first?.flight?.iata, "LH400")
+    }
+
+    @MainActor func testSupersededEmptyFlightResultDoesNotStartFallback() async throws {
+        let first = expectation(description: "First flight requested")
+        let second = expectation(description: "Second flight requested")
+        let service = ControlledFlights { code in (code == "LH400" ? first : second).fulfill() }
+        let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { _ in nil })
+        model.flightIATA = "LH400"
+        let older = Task { await model.search() }
+        await fulfillment(of: [first], timeout: 2)
+        model.flightIATA = "BA123"
+        let newer = Task { await model.search() }
+        await fulfillment(of: [second], timeout: 2)
+        await service.succeed("BA123", response: try flight("BA123"))
+        await newer.value
+        await service.succeed("LH400", response: FlightResponse(data: []))
+        await older.value
+        let calls = await service.calls
+        XCTAssertEqual(calls.count, 2)
+        XCTAssertEqual(model.flights.first?.flight?.iata, "BA123")
+    }
+
+    @MainActor func testSupersededFlightResultDoesNotStartAirportEnrichment() async throws {
+        let requested = expectation(description: "Flight requested")
+        let service = ControlledFlights { _ in requested.fulfill() }
+        let airport = AirportStatusSpy()
+        let model = FlightViewModel(service: service, defaults: isolatedDefaults(), airportStatus: { await airport.status(for: $0) })
+        model.flightIATA = "LH400"
+        let request = Task { await model.search() }
+        await fulfillment(of: [requested], timeout: 2)
+        model.flightIATA = "BA123"
+        let response = try JSONDecoder().decode(FlightResponse.self, from: Data(#"{"data":[{"departure":{"iata":"FRA"},"flight":{"iata":"LH400"}}]}"#.utf8))
+        await service.succeed("LH400", response: response)
+        await request.value
+        let calls = await airport.calls
+        XCTAssertEqual(calls, 0)
+        XCTAssertTrue(model.flights.isEmpty)
     }
 
     @MainActor func testCountryChangeDiscardsInFlightRequirements() async throws {

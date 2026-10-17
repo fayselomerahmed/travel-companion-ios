@@ -2,6 +2,21 @@ import XCTest
 @testable import TravelCore
 
 final class TravelCoreTests: XCTestCase {
+    func testFlightErrorsDecodeCurrentAndLegacyProviderEnvelopes() {
+        let current = Data(#"{"error":{"code":"function_access_restricted","message":"Private diagnostic"}}"#.utf8)
+        let legacy = Data(#"{"success":false,"error":{"code":104,"type":"usage_limit_reached","info":"Private diagnostic"}}"#.utf8)
+        XCTAssertEqual(FlightService.providerError(from: current), .subscriptionRestriction)
+        XCTAssertEqual(FlightService.providerError(from: legacy), .requestLimitReached)
+        XCTAssertNil(FlightService.providerError(from: Data(#"{"data":[]}"#.utf8)))
+    }
+
+    func testFlightProviderDiagnosticsCannotBecomeUserFacingMessages() {
+        let payload = Data(#"{"success":false,"error":{"code":"private-provider-type","type":"private-provider-type","info":"private-provider-diagnostic","message":"private-provider-diagnostic"}}"#.utf8)
+        let error = FlightService.providerError(from: payload)
+        XCTAssertEqual(error, .providerFailure)
+        XCTAssertFalse(error?.localizedDescription.contains("private-provider") ?? true)
+    }
+
     func testUnverifiedAirportEnrichmentRequiresExplicitOptIn() {
         XCTAssertFalse(ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: nil))
         XCTAssertFalse(ConfigurationPolicy.allowsExperimentalAirportEnrichment(enabled: false))

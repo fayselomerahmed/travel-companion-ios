@@ -54,8 +54,8 @@ final class FlightViewModel: ObservableObject {
         defer { if requestID == id { isLoading = false } }
 
         do {
-            let response = try await searchBestAvailableFlight(trimmed)
-            try Task.checkCancellation()
+            let response = try await searchBestAvailableFlight(trimmed, requestID: id)
+            try checkCurrentSearch(trimmed, requestID: id)
             let enrichedFlights = await enrichWithFrankfurtDataIfAvailable(response.data, matching: trimmed)
             guard requestID == id, normalizedFlightCode(from: flightIATA) == trimmed, !Task.isCancelled else { return }
             flights = prioritizedFlights(from: enrichedFlights, matching: trimmed)
@@ -93,19 +93,26 @@ final class FlightViewModel: ObservableObject {
             .filter { !$0.isWhitespace }
     }
 
-    private func searchBestAvailableFlight(_ code: String) async throws -> FlightResponse {
+    private func searchBestAvailableFlight(_ code: String, requestID id: UUID) async throws -> FlightResponse {
         do {
             let datedResponse = try await service.searchFlight(iataCode: code, flightDate: todayFlightDate)
             if !datedResponse.data.isEmpty {
                 return datedResponse
             }
-        } catch {
-            if error is CancellationError || (error as? URLError)?.code == .cancelled { throw error }
-            // Some AviationStack plans reject flight_date. Keep flight search working by retrying with the base query.
+        } catch FlightServiceError.subscriptionRestriction {
+            // Only retry a recognized plan restriction. Retrying authorization,
+            // quota, transport, or decoding failures wastes another request.
         }
 
-        try Task.checkCancellation()
+        try checkCurrentSearch(code, requestID: id)
         return try await service.searchFlight(iataCode: code, flightDate: nil)
+    }
+
+    private func checkCurrentSearch(_ code: String, requestID id: UUID) throws {
+        try Task.checkCancellation()
+        guard requestID == id, normalizedFlightCode(from: flightIATA) == code else {
+            throw CancellationError()
+        }
     }
 
     private func enrichWithFrankfurtDataIfAvailable(_ items: [FlightItem], matching code: String) async -> [FlightItem] {
