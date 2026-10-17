@@ -1,0 +1,21 @@
+# Xcode user data and build output
+DerivedData/
+build/
+build-*/
+.build/
+xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+*.moved-aside
+
+# Local credentials
+Secrets.local.xcconfig
+TravelCompanion/Networking/LocalAPIKeys.swift
+.env
+.env.*
+
+# Local databases and operating-system files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store

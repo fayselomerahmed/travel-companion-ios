@@ -1,0 +1,64 @@
+{
+  "identifier" : "TravelCompanionProducts",
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "100000001",
+      "localizations" : [
+        {
+          "description" : "Unlock Travel Plus for one journey with premium travel tools.",
+          "displayName" : "Trip Pass",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.faysel.TravelCompanion.tripPass",
+      "referenceName" : "Trip Pass",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_developerTeamID" : ""
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "100000001",
+      "localizations" : [
+        {
+          "locale" : "en_US",
+          "name" : "Travel Plus"
+        }
+      ],
+      "name" : "Travel Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+          ],
+          "codeOffers" : [
+          ],
+          "displayPrice" : "3.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "100000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly Travel Plus with live alerts, offline essentials, and document wallet.",
+              "displayName" : "Travel Plus Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.faysel.TravelCompanion.travelPlusMonthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Travel Plus Monthly",
+          "subscriptionGroupID" : "100000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}
