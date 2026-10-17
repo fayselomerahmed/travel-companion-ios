@@ -2,7 +2,6 @@
 //  TravelPlusScreen.swift
 //  TravelCompanion
 //
-//  Created by Codex on 6/6/26.
 //
 
 import SwiftUI
@@ -207,11 +206,11 @@ struct TravelPlusScreen: View {
     private var productionNote: some View {
         PremiumContentCard(cornerRadius: 22) {
             VStack(alignment: .leading, spacing: 10) {
-                LText("Production setup")
+                LText("Travel Plus preview")
                     .font(.system(size: 17, weight: .bold, design: .serif))
                     .foregroundStyle(.white)
 
-                LText("StoreKit is wired. Create the matching products in App Store Connect, add affiliate links, and test purchases in Sandbox before release.")
+                LText("Premium plans are a preview. Live alerts, document wallet, and offline premium tools are planned features. Purchases remain disabled until those features and payments are verified.")
                     .font(.system(size: 13, weight: .light))
                     .foregroundStyle(PremiumPalette.textSecondary)
                     .lineSpacing(2)
@@ -263,7 +262,7 @@ struct TravelPlusScreen: View {
                     }
                 } label: {
                     HStack {
-                        LText(purchaseManager.isPurchased(plan.productID) ? "Active" : "Continue")
+                        LText(purchaseManager.isPurchased(plan.productID) ? "Active" : (purchaseManager.purchasesEnabled ? "Continue" : "Coming soon"))
                             .font(.system(size: 14, weight: .bold))
                         Spacer()
                         if purchaseManager.isLoading {
@@ -281,7 +280,7 @@ struct TravelPlusScreen: View {
                     .background(PremiumPalette.gold, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
                 .buttonStyle(ScaleButtonStyle())
-                .disabled(purchaseManager.isLoading || purchaseManager.isPurchased(plan.productID))
+                .disabled(!purchaseManager.purchasesEnabled || purchaseManager.isLoading || purchaseManager.isPurchased(plan.productID))
             }
         }
     }

@@ -2,7 +2,6 @@
 //  PurchaseManager.swift
 //  TravelCompanion
 //
-//  Created by Codex on 6/6/26.
 //
 
 import Foundation
@@ -20,6 +19,11 @@ final class PurchaseManager: ObservableObject {
     @Published private(set) var purchasedProductIDs: Set<String> = []
     @Published private(set) var isLoading = false
     @Published var statusMessage: String?
+
+    // Enable only after every advertised premium capability and purchase flow is verified.
+    var purchasesEnabled: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "TravelPlusPurchasesEnabled") as? Bool == true
+    }
 
     private let productIDs: Set<String> = [
         PurchaseManager.tripPassProductID,
@@ -63,6 +67,10 @@ final class PurchaseManager: ObservableObject {
     }
 
     func purchase(productID: String) async {
+        guard purchasesEnabled else {
+            statusMessage = "Travel Plus is a preview. Purchases are not enabled in this build."
+            return
+        }
         if products.isEmpty {
             await loadProducts()
         }
@@ -81,9 +89,10 @@ final class PurchaseManager: ObservableObject {
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
-                purchasedProductIDs.insert(transaction.productID)
                 await transaction.finish()
-                statusMessage = "Travel Plus is active."
+                await refreshPurchasedProducts()
+                statusMessage = purchasedProductIDs.contains(transaction.productID)
+                    ? "Travel Plus is active." : "This purchase is no longer active."
             case .userCancelled:
                 statusMessage = "Purchase cancelled."
             case .pending:
@@ -114,7 +123,12 @@ final class PurchaseManager: ObservableObject {
 
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result,
-               productIDs.contains(transaction.productID) {
+               productIDs.contains(transaction.productID),
+               PurchaseEntitlementPolicy.isActive(
+                   revocationDate: transaction.revocationDate,
+                   expirationDate: transaction.expirationDate,
+                   isUpgraded: transaction.isUpgraded
+               ) {
                 activeProductIDs.insert(transaction.productID)
             }
         }
@@ -137,8 +151,8 @@ final class PurchaseManager: ObservableObject {
     private func handle(transactionResult result: VerificationResult<Transaction>) async {
         do {
             let transaction = try checkVerified(result)
-            purchasedProductIDs.insert(transaction.productID)
             await transaction.finish()
+            await refreshPurchasedProducts()
         } catch {
             statusMessage = "A StoreKit transaction could not be verified."
         }

@@ -1,8 +1,10 @@
 # Travel Companion
 
-Travel Companion is a native SwiftUI trip-planning app for iPhone. It brings flight lookup, entry-requirement checks, saved trips, airport guidance, and premium feature flows into one interface.
+My native iPhone travel-planning project. I bring flight lookup, entry-requirement checks, saved trips, and airport guidance into one SwiftUI interface, with a focus on clear loading states, useful error messages, and locally stored trip information.
 
-## Highlights
+**SwiftUI · SwiftData · Swift Concurrency · URLSession · MapKit · StoreKit 2**
+
+## What the app does
 
 - Search flights and inspect status details.
 - Check visa and entry requirements by nationality and destination.
@@ -11,6 +13,23 @@ Travel Companion is a native SwiftUI trip-planning app for iPhone. It brings fli
 - StoreKit-based premium UI and purchase restoration.
 - Localized interface resources for 22 languages.
 - Async networking with user-facing configuration and response errors.
+
+## Engineering decisions
+
+I separate feature views and their state from provider-specific networking. Main-actor view models manage search input, loading, results, and errors; service classes handle API requests and response decoding. Flight search retries without the date parameter when a provider plan does not support it, and can enrich Frankfurt departures with airport status information.
+
+Saved trips use SwiftData, while recent flight searches and requirement checks use lightweight local preferences. Startup presents a recovery screen if persistent storage cannot be opened, instead of silently pretending temporary in-memory trips were saved.
+
+The StoreKit 2 manager observes transaction updates, verifies results, filters revoked/expired/upgraded entitlements, and supports restoration. Premium capabilities are preview plans; purchases remain disabled by default until the advertised features and payment flows are verified.
+
+## Start reading the code
+
+- [App entry point](TravelCompanion/TravelCompanionApp.swift) — startup and SwiftData recovery.
+- [Flight view model](TravelCompanion/Features/Flights/FlightViewModel.swift) — search normalization, provider fallback, and result ranking.
+- [Requirements view model](TravelCompanion/Features/Requirements/RequirmentsViewModel.swift) — selection, validation, and recent checks.
+- [API client](TravelCompanion/Networking/APIClient.swift) — configuration, request timeouts, and response errors.
+- [Saved trip model](TravelCompanion/SavedTrip.swift) — local persistence.
+- [Purchase manager](TravelCompanion/SharedUI/PurchaseManager.swift) — StoreKit products, transactions, and restoration.
 
 ## Requirements
 
@@ -31,11 +50,13 @@ Never commit `Secrets.local.xcconfig` or put production credentials directly in 
 
 ## Project structure
 
-- `Features/` — home, flights, requirements, saved trips, profile, and premium screens
-- `Models/` — API and persistence models
-- `Networking/` — configuration, clients, and service integrations
-- `SharedUI/` — navigation, localization, reusable controls, and visual system
+- [`TravelCompanion/Features/`](TravelCompanion/Features) — home, flights, requirements, saved trips, profile, and premium screens.
+- [`TravelCompanion/Models/`](TravelCompanion/Models) — API request and response models.
+- [`TravelCompanion/Networking/`](TravelCompanion/Networking) — configuration, clients, and provider integrations.
+- [`TravelCompanion/SharedUI/`](TravelCompanion/SharedUI) — navigation, localization, reusable controls, and visual system.
 
-## Validation
+## Validation and current status
 
-All Swift source files passed syntax parsing with Swift 6.3. A simulator build was attempted with Xcode 26.4 but could not start because the iOS platform is not installed on the preparation machine. A full build, runtime behavior, and live API responses remain unverified.
+Run `swift test` for five regression tests covering configuration and purchase-entitlement policy. A hosted workflow repeats core tests and builds Release for the iOS simulator. A full local simulator build was attempted but blocked by the installed iOS platform/runtime; runtime behavior and live provider responses are not yet verified.
+
+See [release readiness](PRODUCTION_READINESS.md) for the explicit backend, premium-feature, device, privacy, and App Store gates. This is a development project, not a claim of completed production deployment.

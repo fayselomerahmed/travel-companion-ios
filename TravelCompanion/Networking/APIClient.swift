@@ -57,11 +57,10 @@ enum APIKeys {
     }
 
     private static func configuredValue(named name: String) throws -> String {
-        if let value = ProcessInfo.processInfo.environment[name], !value.isEmpty {
-            return value
-        }
-
-        if let value = Bundle.main.object(forInfoDictionaryKey: name) as? String, !value.isEmpty {
+        if let value = ConfigurationPolicy.value(
+            environment: ProcessInfo.processInfo.environment[name],
+            bundled: Bundle.main.object(forInfoDictionaryKey: name) as? String
+        ) {
             return value
         }
 

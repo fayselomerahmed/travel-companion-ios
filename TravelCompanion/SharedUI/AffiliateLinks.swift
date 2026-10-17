@@ -2,7 +2,6 @@
 //  AffiliateLinks.swift
 //  TravelCompanion
 //
-//  Created by Codex on 6/6/26.
 //
 
 import Foundation

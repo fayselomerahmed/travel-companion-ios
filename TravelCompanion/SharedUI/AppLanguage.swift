@@ -2,7 +2,6 @@
 //  AppLanguage.swift
 //  TravelCompanion
 //
-//  Created by Codex on 6/4/26.
 //
 
 import Foundation

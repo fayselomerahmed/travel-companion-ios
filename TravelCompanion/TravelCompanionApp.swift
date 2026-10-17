@@ -45,15 +45,8 @@ private enum AppModelContainerState {
             )
             return .ready(container)
         } catch {
-            assertionFailure("Could not create persistent ModelContainer: \(error)")
-        }
-
-        do {
-            let fallbackConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            let container = try ModelContainer(for: schema, configurations: [fallbackConfiguration])
-            return .ready(container)
-        } catch {
-            return .unavailable("Travel Companion could not prepare local trip storage. Restart the app or reinstall if the issue continues.")
+            // Never pretend a trip was saved when persistence is unavailable.
+            return .unavailable("Travel Companion could not open saved-trip storage. No existing data has been deleted. Restart the app and contact support if the issue continues; do not reinstall without a backup.")
         }
     }
 }
